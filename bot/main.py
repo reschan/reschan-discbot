@@ -76,14 +76,21 @@ async def get_videoinfo(url, author):
     return res
 
 
-def vc_status():
+def status_user_join():
+    async def predicate(ctx):
+        if not ctx.author.voice:
+            await ctx.send('ERROR: You are not in a Voice Channel!')
+            return False
+        return True
+    return commands.check(predicate)
+
+
+def status_bot_join():
     async def predicate(ctx):
         if not ctx.voice_client:
             await ctx.send('ERROR: Not in a Voice Channel!')
             return False
-        if not ctx.author.voice:
-            await ctx.send('ERROR: You are not in a Voice Channel!')
-        return ctx.voice_client and ctx.author.voice
+        return True
     return commands.check(predicate)
 
 
@@ -109,14 +116,11 @@ class MusicPlayer(commands.Cog):
             return True
 
     @commands.command()
+    @status_user_join()
     async def join(self, ctx):
         self.queue = []
         if ctx.voice_client:
             ctx.voice_client.stop()
-        if not ctx.author.voice:
-            await ctx.send('ERROR: The user is not connected to a Voice Channel.')
-            print('author vc not found')
-            return False
         channel = ctx.author.voice.channel
         self.is_vc = True
         await ctx.send(f'Successfully connected to: {ctx.author.voice.channel}')
@@ -124,13 +128,15 @@ class MusicPlayer(commands.Cog):
         return True
 
     @commands.command(name='dc')
-    @vc_status()
+    @status_user_join()
+    @status_bot_join()
     async def leave(self, ctx):
         self.is_vc = False
         self.queue = []
         return await ctx.voice_client.disconnect()
 
     @commands.command()
+    @status_user_join()
     async def play(self, ctx, url):
         async with self.play_lock:
             if not self.is_vc:
@@ -142,32 +148,37 @@ class MusicPlayer(commands.Cog):
         return True
 
     @commands.command()
-    @vc_status()
+    @status_user_join()
+    @status_bot_join()
     async def pause(self, ctx):
         await ctx.send('Paused')
         return ctx.voice_client.pause()
 
     @commands.command()
-    @vc_status()
+    @status_user_join()
+    @status_bot_join()
     async def resume(self, ctx):
         await ctx.send('Resumed')
         return ctx.voice_client.resume()
 
     @commands.command()
-    @vc_status()
+    @status_user_join()
+    @status_bot_join()
     async def stop(self, ctx):
         await ctx.send('Queue cleared and stopped')
         self.queue = []
         return ctx.voice_client.stop()
 
     @commands.command()
-    @vc_status()
+    @status_user_join()
+    @status_bot_join()
     async def skip(self, ctx):
         await ctx.send('Skipped')
         return ctx.voice_client.stop()
 
     @commands.command()
-    @vc_status()
+    @status_user_join()
+    @status_bot_join()
     async def queue(self, ctx, entry=0):
         embed = discord.Embed(title=f"{ctx.voice_client.channel}'s queue:", color=0x9a3eae)
         for i in range(entry, entry + 10):
@@ -191,7 +202,8 @@ class MusicPlayer(commands.Cog):
                     break
 
     @commands.command()
-    @vc_status()
+    @status_user_join()
+    @status_bot_join()
     async def isplaying(self, ctx):
         await ctx.send(ctx.voice_client.is_playing())
         await ctx.send(self.queue)
