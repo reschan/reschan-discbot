@@ -8,9 +8,7 @@ import os
 
 load_dotenv()
 
-ffmpeg_options = {
-    'options': '-vn'
-}
+ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
 
 ytdl_format_options = {
     'format': 'bestaudio/best',
@@ -117,6 +115,9 @@ class MusicPlayer(commands.Cog):
 
     @commands.command()
     async def join(self, ctx):
+        self.queue = []
+        if ctx.voice_client:
+            ctx.voice_client.stop()
         if not ctx.author.voice:
             await ctx.send('ERROR: The user is not connected to a Voice Channel.')
             print('author vc not found')
@@ -130,6 +131,7 @@ class MusicPlayer(commands.Cog):
     @vc_status()
     async def leave(self, ctx):
         self.is_vc = False
+        self.queue = []
         await ctx.voice_client.disconnect()
 
     @commands.command()
