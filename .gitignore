@@ -108,3 +108,8 @@ venv.bak/
 
 # .idea
 .idea/
+
+# ffmpeg
+bot/ffmpeg.exe
+bot/ffplay.exe
+bot/ffprobe.exe
