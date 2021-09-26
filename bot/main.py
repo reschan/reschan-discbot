@@ -253,7 +253,6 @@ def start_server(port: int):
     serve_thread.start()
 
 
-if __name__ == "__main__":
-    start_server(8000)
-    bot.add_cog(MusicPlayer(bot))
-    bot.run(os.getenv('TOKEN'))
+start_server(8000)
+bot.add_cog(MusicPlayer(bot))
+bot.run(os.getenv('TOKEN'))
