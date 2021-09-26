@@ -246,13 +246,13 @@ class MusicPlayer(commands.Cog):
             return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 
-def start_server(port: int):
+def start_server(port: int = 8000):
     print(f"Starting on port {port}")
     server = ThreadingHTTPServer(('', port), handler)
     serve_thread = Thread(group=None, target=server.serve_forever)
     serve_thread.start()
 
 
-start_server(8000)
+start_server(int(os.getenv('PORT')))
 bot.add_cog(MusicPlayer(bot))
 bot.run(os.getenv('TOKEN'))
