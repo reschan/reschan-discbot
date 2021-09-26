@@ -56,10 +56,37 @@ async def on_message(ctx):
     await bot.process_commands(ctx)
 
 
+@bot.command(name='help')
+async def help_cmd(ctx):
+    embed = discord.Embed(title="Commands for reschan:", color=0x2ff4ff)
+    embed.add_field(name="MusicPlayer", value="Commands for MusicPlayer module", inline=False)
+    embed.add_field(name="play", value="Join queue and play", inline=True)
+    embed.add_field(name="pause", value="Pauses player", inline=True)
+    embed.add_field(name="stop", value="Stops the player", inline=True)
+    embed.add_field(name="resume", value="Resumes the player", inline=True)
+    embed.add_field(name="skip", value="Skip a song", inline=True)
+    embed.add_field(name="queue [start_pos]", value="Shows queue", inline=True)
+    embed.add_field(name="isplaying", value="dev usage", inline=True)
+    embed.add_field(name="dc", value="Disconnects the bot", inline=True)
+    embed.add_field(name="join", value="Deprecated, use play", inline=True)
+    embed.add_field(name="misc.", value="Commands for uncategorized stuff.", inline=False)
+    embed.add_field(name="kyosmile", value="Most precious creature", inline=True)
+    embed.add_field(name="help", value="Shows this message", inline=True)
+    embed.add_field(name="test", value="<:kyoSmile:878070485592703036>", inline=True)
+    embed.set_footer(text="To wake reschan, please click the link under 'About Me' section of reschan. But if you see this message, reschan is already awake.")
+    return await ctx.send(embed=embed)
+
+
+@bot.command()
+async def kyosmile(ctx):
+    return await ctx.send('<:kyoSmile:878070485592703036>\n<:kyoSmile:878070485592703036>\n<:kyoSmile:878070485592703036><:kyoSmile:878070485592703036><:kyoSmile:878070485592703036>\n<:kyoSmile:878070485592703036>⬛<:kyoSmile:878070485592703036>\n<:kyoSmile:878070485592703036>⬛<:kyoSmile:878070485592703036>')
+
+
 @bot.command(name='test')
 async def dumbstuff(ctx, *args):
     for i in range(len(args)):
         await ctx.send(args[i])
+    print(ctx.message)
     return await ctx.send('probably alive')
 
 
