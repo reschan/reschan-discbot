@@ -9,8 +9,9 @@ from threading import Thread
 import asyncio
 import youtube_dl
 from dotenv import load_dotenv
+import signal
 import os
-
+from datetime import datetime
 load_dotenv()
 
 ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -31,9 +32,14 @@ ytdl_format_options = {
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
-bot = commands.Bot(command_prefix='res ', help_command=None)
+intents = discord.Intents.default()
+intents.members = True
+
+bot = commands.Bot(command_prefix='res ', help_command=None, intents=intents)
 
 handler = SimpleHTTPRequestHandler
+
+signal.signal(signal.SIGTERM, lambda *_: bot.loop.create_task(bot.close()))
 
 
 @bot.event
@@ -45,11 +51,13 @@ async def on_ready():
 async def on_message(ctx):
     if ctx.author.id == bot.user.id:
         return None
+    if isinstance(ctx.channel, discord.DMChannel):
+        return None
     await bot.process_commands(ctx)
 
 
 @bot.command(name='test')
-async def dumbstuff(ctx, m):
+async def dumbstuff(ctx):
     return ctx.send('probably alive')
 
 
@@ -131,6 +139,7 @@ class MusicPlayer(commands.Cog):
                 ctx.voice_client.play(player, after=lambda d: self.queue.pop(0) if self.queue else None)
             return await self.leave(ctx)
 
+    @commands.command()
     async def join(self, ctx):
         if ctx.voice_client:
             ctx.voice_client.stop()
@@ -232,13 +241,14 @@ class MusicPlayer(commands.Cog):
             return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 
-def start_server(port=8000):
+def start_server(port: int):
     print(f"Starting on port {port}")
     server = ThreadingHTTPServer(('', port), handler)
     serve_thread = Thread(group=None, target=server.serve_forever)
     serve_thread.start()
 
 
-start_server(int(os.getenv('PORT', 8000)))
-bot.add_cog(MusicPlayer(bot))
-bot.run(os.getenv('TOKEN'))
+if __name__ == '__main__':
+    start_server(int(os.getenv('PORT', 8000)))
+    bot.add_cog(MusicPlayer(bot))
+    bot.run(os.getenv('TOKEN'))
