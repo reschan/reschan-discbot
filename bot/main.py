@@ -26,7 +26,7 @@ ytdl_format_options = {
     'quiet': True,
     'no_warnings': True,
     'default_search': 'auto',
-    'source_address': '0.0.0.0' # bind to ipv4 since ipv6 addresses cause issues sometimes
+    'source_address': '0.0.0.0'  # bind to ipv4 since ipv6 addresses cause issues sometimes
 }
 
 ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
@@ -50,9 +50,7 @@ async def on_message(ctx):
 
 @bot.command(name='test')
 async def dumbstuff(ctx, m):
-    for i in range(50):
-        await ctx.send(m)
-    print(ctx.message.content)
+    return ctx.send('probably alive')
 
 
 def parse_playlist_link(url):
@@ -111,6 +109,7 @@ def status_bot_join():
 
 class MusicPlayer(commands.Cog):
     """Main class for music cog."""
+
     def __init__(self, botuser):
         self.bot = botuser
         self.queue = []
@@ -129,11 +128,10 @@ class MusicPlayer(commands.Cog):
                 ctx.voice_client.stop()
                 player = await self.YTDLSource.from_url(self.queue[0]['url'], loop=self.bot.loop, stream=True)
                 await ctx.send(f'Playing: {player.title}')
-                ctx.voice_client.play(player, after=lambda d: self.queue.pop(0) if self.queue else self.queue.clear())
-            return True
+                ctx.voice_client.play(player, after=lambda d: self.queue.pop(0) if self.queue else None)
+            return await self.leave(ctx)
 
     async def join(self, ctx):
-        self.queue = []
         if ctx.voice_client:
             ctx.voice_client.stop()
         channel = ctx.author.voice.channel
@@ -150,15 +148,16 @@ class MusicPlayer(commands.Cog):
         return await ctx.voice_client.disconnect()
 
     @commands.command()
+    @commands.cooldown(1, 2)
     @status_user_join()
     async def play(self, ctx, url):
+        self.queue = [*self.queue, *await get_videoinfo(url, ctx.message.author)]
+        await ctx.send('Added url to queue!')
         async with self.play_lock:
             if not self.is_vc:
                 await self.join(ctx)
-        self.queue = [*self.queue, *await get_videoinfo(url, ctx.message.author)]
-        await ctx.send('Added url to queue!')
-        if not ctx.voice_client.is_playing():
-            return await self.playqueue(ctx)
+            if not ctx.voice_client.is_playing():
+                return await self.playqueue(ctx)
         return True
 
     @commands.command()
@@ -198,25 +197,12 @@ class MusicPlayer(commands.Cog):
         for i in range(entry, entry + 10):
             if i < len(self.queue):
                 embed.add_field(name=f"Requested by {self.queue[i]['author']}", value=f"{'Now playing:' if i == 0 else f'{i}.'} [{self.queue[i]['title']}]({self.queue[i]['url']})", inline=False)
-        await ctx.send(embed=embed)
+        return await ctx.send(embed=embed)
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        if after.channel is None:
-            await self.leave(before.channel.guild)
-        async with self.sleep_lock:
-            if before.channel is None:
-                voice = after.channel.guild.voice_client
-                time = 0
-                while True:
-                    await asyncio.sleep(1)
-                    time = time + 1
-                    if voice.is_playing() and not voice.is_paused():
-                        time = 0
-                    if time == 180:
-                        await voice.disconnect()
-                    if not voice.is_connected():
-                        break
+        if after.channel is None and self.is_vc:
+            return await self.leave(before.channel.guild)
 
     @commands.command()
     async def isplaying(self, ctx):
@@ -246,13 +232,13 @@ class MusicPlayer(commands.Cog):
             return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 
-def start_server(port: int = 8000):
+def start_server(port=8000):
     print(f"Starting on port {port}")
     server = ThreadingHTTPServer(('', port), handler)
     serve_thread = Thread(group=None, target=server.serve_forever)
     serve_thread.start()
 
 
-start_server(int(os.getenv('PORT')))
+start_server(int(os.getenv('PORT', 8000)))
 bot.add_cog(MusicPlayer(bot))
 bot.run(os.getenv('TOKEN'))
