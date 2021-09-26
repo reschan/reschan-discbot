@@ -57,8 +57,10 @@ async def on_message(ctx):
 
 
 @bot.command(name='test')
-async def dumbstuff(ctx):
-    return ctx.send('probably alive')
+async def dumbstuff(ctx, *args):
+    for i in range(len(args)):
+        await ctx.send(args[i])
+    return await ctx.send('probably alive')
 
 
 def parse_playlist_link(url):
