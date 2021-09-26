@@ -1,6 +1,11 @@
 # bot.py
+"""
+TODO: Error handlers, maybe improve else.
+"""
 from discord.ext import commands, tasks
 import discord
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
+from threading import Thread
 import asyncio
 import youtube_dl
 from dotenv import load_dotenv
@@ -28,6 +33,8 @@ ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 
 bot = commands.Bot(command_prefix='res ', help_command=None)
 
+handler = SimpleHTTPRequestHandler
+
 
 @bot.event
 async def on_ready():
@@ -49,6 +56,7 @@ async def dumbstuff(ctx, m):
 
 
 def parse_playlist_link(url):
+    """Extract a youtube playlist link from a video-in-a-playlist link"""
     # url =  https://www.youtube.com/watch?v=Atp5xTJS3gU&list=PLp4K2TWhRg0ANsGA7ENtr2ZjO2gvvXMJM&index=13
     # res =  https://www.youtube.com/playlist?list=PLp4K2TWhRg0ANsGA7ENtr2ZjO2gvvXMJM&index=13
     res = url[:url.find('watch?v=')] + 'playlist?' + url[url.find('&list=') + 1:]
@@ -56,6 +64,11 @@ def parse_playlist_link(url):
 
 
 async def get_videoinfo(url, author):
+    """
+    Extract video information for queues
+
+    res = [{vid0},{vid1}]
+    """
     res = []
     if '&list=' in url and 'watch?v=' in url:
         url = parse_playlist_link(url)
@@ -70,13 +83,14 @@ async def get_videoinfo(url, author):
             pass
     else:
         res.append({})
-        res[0]['url'] = url
+        res[0]['url'] = data.get('webpage_url')
         res[0]['title'] = data.get('title')
         res[0]['author'] = author
     return res
 
 
 def status_user_join():
+    """Command checks for user vc join status"""
     async def predicate(ctx):
         if not ctx.author.voice:
             await ctx.send('ERROR: You are not in a Voice Channel!')
@@ -86,6 +100,7 @@ def status_user_join():
 
 
 def status_bot_join():
+    """Command checks for bot vc join status"""
     async def predicate(ctx):
         if not ctx.voice_client:
             await ctx.send('ERROR: Not in a Voice Channel!')
@@ -95,6 +110,7 @@ def status_bot_join():
 
 
 class MusicPlayer(commands.Cog):
+    """Main class for music cog."""
     def __init__(self, botuser):
         self.bot = botuser
         self.queue = []
@@ -102,6 +118,7 @@ class MusicPlayer(commands.Cog):
 
         self.play_lock = asyncio.Lock()
         self.queue_lock = asyncio.Lock()
+        self.sleep_lock = asyncio.Lock()
 
     async def playqueue(self, ctx):
         async with self.queue_lock:
@@ -112,11 +129,9 @@ class MusicPlayer(commands.Cog):
                 ctx.voice_client.stop()
                 player = await self.YTDLSource.from_url(self.queue[0]['url'], loop=self.bot.loop, stream=True)
                 await ctx.send(f'Playing: {player.title}')
-                ctx.voice_client.play(player, after=lambda d: self.queue.pop(0))
+                ctx.voice_client.play(player, after=lambda d: self.queue.pop(0) if self.queue else self.queue.clear())
             return True
 
-    @commands.command()
-    @status_user_join()
     async def join(self, ctx):
         self.queue = []
         if ctx.voice_client:
@@ -124,8 +139,7 @@ class MusicPlayer(commands.Cog):
         channel = ctx.author.voice.channel
         self.is_vc = True
         await ctx.send(f'Successfully connected to: {ctx.author.voice.channel}')
-        await channel.connect()
-        return True
+        return await channel.connect()
 
     @commands.command(name='dc')
     @status_user_join()
@@ -141,8 +155,8 @@ class MusicPlayer(commands.Cog):
         async with self.play_lock:
             if not self.is_vc:
                 await self.join(ctx)
-            self.queue = [*self.queue, *await get_videoinfo(url, ctx.message.author)]
-            await ctx.send('Added url to queue!')
+        self.queue = [*self.queue, *await get_videoinfo(url, ctx.message.author)]
+        await ctx.send('Added url to queue!')
         if not ctx.voice_client.is_playing():
             return await self.playqueue(ctx)
         return True
@@ -188,23 +202,25 @@ class MusicPlayer(commands.Cog):
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
-        if before.channel is None:
-            voice = after.channel.guild.voice_client
-            time = 0
-            while True:
-                await asyncio.sleep(1)
-                time = time + 1
-                if voice.is_playing() and not voice.is_paused():
-                    time = 0
-                if time == 180:
-                    await voice.disconnect()
-                if not voice.is_connected():
-                    break
+        if after.channel is None:
+            await self.leave(before.channel.guild)
+        async with self.sleep_lock:
+            if before.channel is None:
+                voice = after.channel.guild.voice_client
+                time = 0
+                while True:
+                    await asyncio.sleep(1)
+                    time = time + 1
+                    if voice.is_playing() and not voice.is_paused():
+                        time = 0
+                    if time == 180:
+                        await voice.disconnect()
+                    if not voice.is_connected():
+                        break
 
     @commands.command()
-    @status_user_join()
-    @status_bot_join()
     async def isplaying(self, ctx):
+        """Debug commands"""
         await ctx.send(ctx.voice_client.is_playing())
         await ctx.send(self.queue)
 
@@ -230,5 +246,14 @@ class MusicPlayer(commands.Cog):
             return cls(discord.FFmpegPCMAudio(filename, **ffmpeg_options), data=data)
 
 
-bot.add_cog(MusicPlayer(bot))
-bot.run(os.getenv('TOKEN'))
+def start_server(port: int):
+    print(f"Starting on port {port}")
+    server = ThreadingHTTPServer(('', port), handler)
+    serve_thread = Thread(group=None, target=server.serve_forever)
+    serve_thread.start()
+
+
+if __name__ == "__main__":
+    start_server(8000)
+    bot.add_cog(MusicPlayer(bot))
+    bot.run(os.getenv('TOKEN'))
