@@ -11,6 +11,8 @@ import youtube_dl
 from dotenv import load_dotenv
 import signal
 import os
+from youtube_search import YoutubeSearch
+
 load_dotenv()
 
 ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -106,9 +108,11 @@ async def get_videoinfo(url, author):
     res = []
     if '&list=' in url and 'watch?v=' in url:
         url = parse_playlist_link(url)
+    if '&list=' not in url and 'watch?v=' not in url:
+        print('search term')
+        url = YoutubeSearch(url, max_results=1).to_dict()[0]['id']
 
     data = await bot.loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
-    print(data.keys)
     if 'entries' in data:
         for i in range(len(data['entries'])):
             res.append({})
@@ -134,7 +138,7 @@ def status_user_join():
     """Command checks for user vc join status"""
     async def predicate(ctx):
         if not ctx.author.voice:
-            await ctx.send('ERROR: You are not in a Voice Channel!')
+            await ctx.send('ERROR: You are not in a Voice Channel!', delete_after=5)
             return False
         return True
     return commands.check(predicate)
@@ -144,7 +148,7 @@ def status_bot_join():
     """Command checks for bot vc join status"""
     async def predicate(ctx):
         if not ctx.voice_client:
-            await ctx.send('ERROR: Not in a Voice Channel!')
+            await ctx.send('ERROR: Not in a Voice Channel!', delete_after=5)
             return False
         return True
     return commands.check(predicate)
@@ -162,25 +166,27 @@ class MusicPlayer(commands.Cog):
         self.queue_lock = asyncio.Lock()
         self.sleep_lock = asyncio.Lock()
 
-    def nowplaying_embed(self):
-        embed = discord.Embed(title=self.queue[0]['title'],
-                              url=self.queue[0]['url'])
+    def nowplaying_embed(self, video):
+        embed = discord.Embed(title=video['title'],
+                              url=video['url'])
         embed.set_author(name="Now playing:", icon_url=self.bot.user.avatar_url)
-        embed.set_thumbnail(url=self.queue[0]['thumbnail'])
-        embed.set_footer(text=f'Requested by {self.queue[0]["author"]}')
+        embed.set_thumbnail(url=video['thumbnail'])
+        embed.set_footer(text=f'Requested by {video["author"]}')
         return embed
 
+    @tasks.loop(seconds=5)
     async def playqueue(self, ctx):
-        async with self.queue_lock:
-            while self.is_vc and self.queue:
-                if ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
-                    await asyncio.sleep(1)
-                    continue
-                ctx.voice_client.stop()
-                player = await self.YTDLSource.from_url(self.queue[0]['url'], loop=self.bot.loop, stream=True)
-                await ctx.send(embed=self.nowplaying_embed())
-                ctx.voice_client.play(player, after=lambda d: self.queue.pop(0) if self.queue else None)
+        if not ctx.voice_client:
+            self.playqueue.cancel()
+        elif ctx.voice_client.is_playing() or ctx.voice_client.is_paused():
+            return True
+        elif not self.queue:
             return await self.leave(ctx)
+        else:
+            ctx.voice_client.stop()
+            player = await self.YTDLSource.from_url(self.queue[0]['url'], loop=self.bot.loop, stream=True)
+            await ctx.send(embed=self.nowplaying_embed(self.queue[0]))
+            ctx.voice_client.play(player, after=lambda d: self.queue.pop(0) if self.queue else None)
 
     @commands.command()
     async def join(self, ctx):
@@ -219,8 +225,42 @@ class MusicPlayer(commands.Cog):
             if not self.is_vc:
                 await self.join(ctx)
             if not ctx.voice_client.is_playing():
-                return await self.playqueue(ctx)
+                self.playqueue.start(ctx) if not self.playqueue.is_running() else None
         return True
+
+    @commands.command()
+    @status_user_join()
+    async def search(self, ctx, *terms):
+        if not terms:
+            return await ctx.send('ERROR: No search terms provided.', delete_after=5)
+
+        def search_embed(search_res):
+            embed = discord.Embed(title=f'Search results:')
+            embed.set_author(name='YouTube search', icon_url=self.bot.user.avatar_url)
+            embed.set_footer(text='Please select from 0-9 in 15 second.')
+            for i in range(len(search_res)):
+                embed.add_field(name=f'{i}. {search_res[i]["title"][:60]}...',
+                                value=f'Chn. Name: {search_res[i]["channel"]} || Duration: {search_res[i]["duration"]}',
+                                inline=False)
+            return embed
+
+        def check(author):
+            def msg_check(message):
+                return message.author == author and message.content in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+            return msg_check
+
+        query = ' '.join(terms)
+        res = YoutubeSearch(query, max_results=10).to_dict()
+        search_msg = await ctx.send(embed=search_embed(res), delete_after=15)
+
+        try:
+            msg = await self.bot.wait_for("message", check=check(ctx.author), timeout=15)
+            await self.play(ctx=ctx, url=res[int(msg.content)]['id'])
+            await msg.delete()
+            await search_msg.delete()
+        except asyncio.exceptions.TimeoutError:
+            await ctx.send('ERROR: No selection', delete_after=5)
+            return False
 
     @commands.command()
     @status_user_join()
@@ -268,9 +308,7 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(aliases=['np'])
     async def isplaying(self, ctx):
-        """Debug commands"""
         await ctx.send(embed=self.nowplaying_embed())
-        # await ctx.send(self.queue)
 
     class YTDLSource(discord.PCMVolumeTransformer):
         def __init__(self, source, *, data, volume=0.5):
