@@ -11,7 +11,6 @@ import youtube_dl
 from dotenv import load_dotenv
 import signal
 import os
-from datetime import datetime
 load_dotenv()
 
 ffmpeg_options = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
@@ -65,8 +64,8 @@ async def help_cmd(ctx):
     embed.add_field(name="stop", value="Stops the player", inline=True)
     embed.add_field(name="resume", value="Resumes the player", inline=True)
     embed.add_field(name="skip", value="Skip a song", inline=True)
-    embed.add_field(name="queue [start_pos]", value="Shows queue", inline=True)
-    embed.add_field(name="isplaying", value="dev usage", inline=True)
+    embed.add_field(name="queue [pos]", value="Shows queue", inline=True)
+    embed.add_field(name="np", value="Shows now playing", inline=True)
     embed.add_field(name="dc", value="Disconnects the bot", inline=True)
     embed.add_field(name="join", value="Deprecated, use play", inline=True)
     embed.add_field(name="misc.", value="Commands for uncategorized stuff.", inline=False)
@@ -109,19 +108,26 @@ async def get_videoinfo(url, author):
         url = parse_playlist_link(url)
 
     data = await bot.loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
+    print(data.keys)
     if 'entries' in data:
         for i in range(len(data['entries'])):
             res.append({})
             res[i]['url'] = data['entries'][i].get('webpage_url')
             res[i]['title'] = data['entries'][i].get('title')
+            res[i]['thumbnail'] = data['entries'][i].get('thumbnail')
             res[i]['author'] = author
-            pass
+        playlist_info = {'url': data.get('webpage_url'),
+                         'thumbnail': data['entries'][0].get('thumbnail'),
+                         'title': data.get('title'),
+                         'author': author}
+        return res, playlist_info
     else:
         res.append({})
         res[0]['url'] = data.get('webpage_url')
         res[0]['title'] = data.get('title')
+        res[0]['thumbnail'] = data.get('thumbnail')
         res[0]['author'] = author
-    return res
+    return res, None
 
 
 def status_user_join():
@@ -156,6 +162,14 @@ class MusicPlayer(commands.Cog):
         self.queue_lock = asyncio.Lock()
         self.sleep_lock = asyncio.Lock()
 
+    def nowplaying_embed(self):
+        embed = discord.Embed(title=self.queue[0]['title'],
+                              url=self.queue[0]['url'])
+        embed.set_author(name="Now playing:", icon_url=self.bot.user.avatar_url)
+        embed.set_thumbnail(url=self.queue[0]['thumbnail'])
+        embed.set_footer(text=f'Requested by {self.queue[0]["author"]}')
+        return embed
+
     async def playqueue(self, ctx):
         async with self.queue_lock:
             while self.is_vc and self.queue:
@@ -164,7 +178,7 @@ class MusicPlayer(commands.Cog):
                     continue
                 ctx.voice_client.stop()
                 player = await self.YTDLSource.from_url(self.queue[0]['url'], loop=self.bot.loop, stream=True)
-                await ctx.send(f'Playing: {player.title}')
+                await ctx.send(embed=self.nowplaying_embed())
                 ctx.voice_client.play(player, after=lambda d: self.queue.pop(0) if self.queue else None)
             return await self.leave(ctx)
 
@@ -174,7 +188,7 @@ class MusicPlayer(commands.Cog):
             ctx.voice_client.stop()
         channel = ctx.author.voice.channel
         self.is_vc = True
-        await ctx.send(f'Successfully connected to: {ctx.author.voice.channel}')
+        print(f'Successfully connected to: {ctx.author.voice.channel}')
         return await channel.connect()
 
     @commands.command(name='dc')
@@ -189,8 +203,18 @@ class MusicPlayer(commands.Cog):
     @commands.cooldown(1, 2)
     @status_user_join()
     async def play(self, ctx, url):
-        self.queue = [*self.queue, *await get_videoinfo(url, ctx.message.author)]
-        await ctx.send('Added url to queue!')
+        def play_embed():
+            embed = discord.Embed(title=pl_info['title'] if pl_info else video_info[0]['title'],
+                                  url=pl_info['url'] if pl_info else video_info[0]['url'])
+            embed.set_author(name="Added URL to queue!", icon_url=self.bot.user.avatar_url)
+            embed.set_footer(text=f"Requested by {pl_info['author'] if pl_info else video_info[0]['author']}")
+            embed.set_thumbnail(url=pl_info['thumbnail'] if pl_info else video_info[0]['thumbnail'])
+            return embed
+
+        video_info, pl_info = await get_videoinfo(url, ctx.message.author)
+        self.queue = [*self.queue, *video_info]
+        await ctx.send(embed=play_embed())
+
         async with self.play_lock:
             if not self.is_vc:
                 await self.join(ctx)
@@ -234,7 +258,7 @@ class MusicPlayer(commands.Cog):
         embed = discord.Embed(title=f"{ctx.voice_client.channel}'s queue:", color=0x9a3eae)
         for i in range(entry, entry + 10):
             if i < len(self.queue):
-                embed.add_field(name=f"Requested by {self.queue[i]['author']}", value=f"{'Now playing:' if i == 0 else f'{i}.'} [{self.queue[i]['title']}]({self.queue[i]['url']})", inline=False)
+                embed.add_field(name=f"Requested by **{self.queue[i]['author']}**", value=f"{'**Now playing:**' if i == 0 else f'**{i}.**'} [{self.queue[i]['title']}]({self.queue[i]['url']})", inline=False)
         return await ctx.send(embed=embed)
 
     @commands.Cog.listener()
@@ -242,11 +266,11 @@ class MusicPlayer(commands.Cog):
         if after.channel is None and self.is_vc:
             return await self.leave(before.channel.guild)
 
-    @commands.command()
+    @commands.command(aliases=['np'])
     async def isplaying(self, ctx):
         """Debug commands"""
-        await ctx.send(ctx.voice_client.is_playing())
-        await ctx.send(self.queue)
+        await ctx.send(embed=self.nowplaying_embed())
+        # await ctx.send(self.queue)
 
     class YTDLSource(discord.PCMVolumeTransformer):
         def __init__(self, source, *, data, volume=0.5):
