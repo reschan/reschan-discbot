@@ -2,3 +2,4 @@ discord.py
 youtube-dl
 python-dotenv
 PyNaCl
+youtube-search
