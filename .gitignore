@@ -113,3 +113,6 @@ venv.bak/
 bot/ffmpeg.exe
 bot/ffplay.exe
 bot/ffprobe.exe
+
+# lavalink
+bot/Lavalink.jar

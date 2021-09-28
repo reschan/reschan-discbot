@@ -3,3 +3,4 @@ youtube-dl
 python-dotenv
 PyNaCl
 youtube-search
+lavalink
