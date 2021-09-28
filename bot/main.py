@@ -108,8 +108,7 @@ async def get_videoinfo(url, author):
     res = []
     if '&list=' in url and 'watch?v=' in url:
         url = parse_playlist_link(url)
-    if '&list=' not in url and 'watch?v=' not in url:
-        print('search term')
+    if 'list=' not in url and 'watch?v=' not in url:
         url = YoutubeSearch(url, max_results=1).to_dict()[0]['id']
 
     data = await bot.loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=False))
@@ -287,9 +286,13 @@ class MusicPlayer(commands.Cog):
     @commands.command()
     @status_user_join()
     @status_bot_join()
-    async def skip(self, ctx):
-        await ctx.send('Skipped')
-        return ctx.voice_client.stop()
+    async def skip(self, ctx, pos=0):
+        if pos == 0:
+            return ctx.voice_client.stop()
+        else:
+            if self.queue[pos]:
+                await ctx.send('pass')
+            return self.queue.pop(pos) if self.queue[pos] else await ctx.send('ERROR: No position found', delete_after=5)
 
     @commands.command()
     @status_user_join()
@@ -308,7 +311,7 @@ class MusicPlayer(commands.Cog):
 
     @commands.command(aliases=['np'])
     async def isplaying(self, ctx):
-        await ctx.send(embed=self.nowplaying_embed())
+        await ctx.send(embed=self.nowplaying_embed(self.queue[0]))
 
     class YTDLSource(discord.PCMVolumeTransformer):
         def __init__(self, source, *, data, volume=0.5):
