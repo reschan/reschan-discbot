@@ -322,16 +322,7 @@ class Music(commands.Cog):
                                                                                             delete_after=5)
 
 
-def start_server(port: int):
-    print(f"Starting on port {port}")
-    server = ThreadingHTTPServer(('', port), handler)
-    serve_thread = Thread(group=None, target=server.serve_forever)
-    serve_thread.start()
-    return server
-
-
 if __name__ == '__main__':
-    start_server(int(os.getenv('PORT', 8000)))
     bot = MainBot()
     signal.signal(signal.SIGTERM, lambda *_: bot.loop.create_task(bot.close()))
     bot.run(os.getenv('TOKEN'))
