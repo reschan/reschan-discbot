@@ -1,2 +1,1 @@
-web: python bot/main.py
-web: node bootstrap.js
+web: python bot/main.py & node bootstrap.js & wait -n

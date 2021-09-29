@@ -71,19 +71,3 @@ fetch("https://api.github.com/repos/freyacodes/Lavalink/releases/latest")
     .catch(err =>{
         console.error("Error occured when fetching latest release url: "+err)
     });
-
-// import express JS module into app
-// and creates its variable.
-var express = require('express');
-var app = express();
-  
-// Creates a server which runs on port 3000 and 
-// can be accessed through localhost:3000
-
-var spawn = require("child_process").spawn;
-      
-var process = spawn('python',["./bot/main.py"] );
-  
-// save code as start.js
-
-
