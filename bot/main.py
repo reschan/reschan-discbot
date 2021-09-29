@@ -107,13 +107,10 @@ class Music(commands.Cog):
 
         return guild_check
 
-    """
     async def cog_command_error(self, ctx, error):
 
         if isinstance(error, commands.CommandInvokeError):
             await ctx.send(error.original, delete_after=5)
-
-    """
 
     async def ensure_voice(self, ctx):
         """ This check ensures that the bot and command author are in the same voicechannel. """
@@ -250,6 +247,8 @@ class Music(commands.Cog):
 
         if not player.is_playing:
             await player.play()
+            player.loop = False
+            player.shuffle = False
 
     @commands.command(aliases=['dc'])
     async def disconnect(self, ctx):
@@ -268,16 +267,18 @@ class Music(commands.Cog):
         await ctx.send('Disconnected', delete_after=5)
 
     @commands.command()
-    async def shuffle(self, ctx, opt: bool):
+    async def shuffle(self, ctx, opt: bool = None):
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
-        player.shuffle = opt
+
+        player.shuffle = opt if opt is not None else not player.shuffle
         await ctx.send(f'Shuffle is set to {opt}', delete_after=10)
 
     @commands.command()
-    async def loop(self, ctx, opt: bool):
+    async def loop(self, ctx, opt: bool = None):
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
-        player.loop = opt
-        await ctx.send(f'Loop is set to {opt}', delete_after=10)
+
+        player.loop = opt if opt is not None else not player.loop
+        await ctx.send(f'Loop is set to {player.loop}', delete_after=10)
 
     @commands.command()
     async def pause(self, ctx):
