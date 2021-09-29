@@ -99,11 +99,11 @@ class Music(commands.Cog):
 
     @tasks.loop(minutes=10)
     async def ping_heroku(self) -> None:
-        requests.get(f'0.0.0.0:{os.getenv("PORT")}')
+        requests.get('https://reschan-discbot.herokuapp.com/')
 
     @commands.command()
     async def ping(self, ctx):
-        requests.get(f'0.0.0.0:{os.getenv("PORT")}')
+        requests.get('https://reschan-discbot.herokuapp.com/')
 
     def cog_unload(self):
         """ Cog unload handler. This removes any event hooks that were registered. """
@@ -122,7 +122,7 @@ class Music(commands.Cog):
         """ This check ensures that the bot and command author are in the same voicechannel. """
         player = self.bot.lavalink.player_manager.create(ctx.guild.id, endpoint=str(ctx.guild.region))
 
-        should_connect = ctx.command.name in ('play',)
+        should_connect = ctx.command.name in ('play', 'ping')
 
         if not ctx.author.voice or not ctx.author.voice.channel:
             raise commands.CommandInvokeError('You are not in a voice channel.')
@@ -147,7 +147,7 @@ class Music(commands.Cog):
             guild_id = int(event.player.guild_id)
             guild = self.bot.get_guild(guild_id)
             await guild.change_voice_state(channel=None)
-            await self.ping_heroku.stop()
+            self.ping_heroku.stop()
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -155,7 +155,7 @@ class Music(commands.Cog):
             player = self.bot.lavalink.player_manager.get(before.channel.guild.id)
             player.queue.clear()
             await player.stop()
-            await self.ping_heroku.stop()
+            self.ping_heroku.stop()
 
     @commands.command(aliases=['p'])
     @commands.cooldown(1, 2)
@@ -255,7 +255,7 @@ class Music(commands.Cog):
 
         if not player.is_playing:
             await player.play()
-            await self.ping_heroku.start(player)
+            self.ping_heroku.start()
 
     @commands.command(aliases=['dc'])
     async def disconnect(self, ctx):
@@ -268,7 +268,7 @@ class Music(commands.Cog):
         if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
             raise commands.CommandInvokeError('You are not in reschan\'s voice channel.')
 
-        await self.ping_heroku.stop()
+        self.ping_heroku.stop()
         player.queue.clear()
         await player.stop()
         await ctx.guild.change_voice_state(channel=None)
