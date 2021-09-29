@@ -1,1 +1,1 @@
-web: python bot/main.py & node bootstrap.js & wait -n
+web: python bot/main.py & node bootstrap.js --optimize_for_size --max_old_space_size=460 & wait -n
