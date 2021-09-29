@@ -29,10 +29,12 @@ def parse_playlist_link(url):
 class MainBot(commands.Bot):
     def __init__(self):
         super().__init__(command_prefix='res ', help_command=None)
+        self.bot = self
 
     async def on_ready(self):
         print(f'{self.user.name} has connected to Discord!')
         self.add_cog(Music(self))
+        self.add_cog(Diagnostic(self))
 
     async def on_message(self, ctx):
         if ctx.author.id == self.user.id:
@@ -41,19 +43,24 @@ class MainBot(commands.Bot):
             return None
         await self.process_commands(ctx)
 
-    @self.command()
+
+class Diagnostic(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.command()
     async def kyosmile(self, ctx):
         return await ctx.send(
             '<:kyoSmile:878070485592703036>\n<:kyoSmile:878070485592703036>\n<:kyoSmile:878070485592703036><:kyoSmile:878070485592703036><:kyoSmile:878070485592703036>\n<:kyoSmile:878070485592703036>⬛<:kyoSmile:878070485592703036>\n<:kyoSmile:878070485592703036>⬛<:kyoSmile:878070485592703036>')
 
-    @self.command(name='test')
+    @commands.command(name='test')
     async def dumbstuff(self, ctx, *args):
         for i in range(len(args)):
             await ctx.send(args[i])
         print(ctx.message)
         return await ctx.send('probably alive')
 
-    @self.command(name='help')
+    @commands.command(name='help')
     async def help_cmd(self, ctx):
         embed = discord.Embed(title="Commands for reschan:", color=0x2ff4ff)
         embed.add_field(name="MusicPlayer", value="Commands for MusicPlayer module", inline=False)
@@ -81,7 +88,7 @@ class Music(commands.Cog):
 
         if not hasattr(bot, 'lavalink'):  # This ensures the client isn't overwritten during cog reloads.
             bot.lavalink = lavalink.Client(self.bot.user.id)
-            bot.lavalink.add_node('127.0.0.1', 8000, 'youshallnotpass', 'eu',
+            bot.lavalink.add_node('127.0.0.1', os.getenv('PORT', 8000), os.getenv('PASS', 'youshallnotpass'), 'us',
                                   'default-node')  # Host, Port, Password, Region, Name
             bot.add_listener(bot.lavalink.voice_update_handler, 'on_socket_response')
 
@@ -324,9 +331,7 @@ def start_server(port: int):
 
 
 if __name__ == '__main__':
-    def start():
-        start_server(int(os.getenv('PORT', 8000)))
-        bot = MainBot()
-        signal.signal(signal.SIGTERM, lambda *_: bot.loop.create_task(bot.close()))
-        bot.run(os.getenv('TOKEN'))
-    start()
+    start_server(int(os.getenv('PORT', 8000)))
+    bot = MainBot()
+    signal.signal(signal.SIGTERM, lambda *_: bot.loop.create_task(bot.close()))
+    bot.run(os.getenv('TOKEN'))
