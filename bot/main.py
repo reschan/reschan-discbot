@@ -63,6 +63,10 @@ class Diagnostic(commands.Cog):
         print(ctx.message)
         return await ctx.send('probably alive')
 
+    @commands.command()
+    async def ping(self, ctx):
+        requests.get('https://reschan-discbot.herokuapp.com/')
+
     @commands.command(name='help')
     async def help_cmd(self, ctx):
         embed = discord.Embed(title="Commands for reschan:", color=0x2ff4ff)
@@ -99,10 +103,6 @@ class Music(commands.Cog):
 
     @tasks.loop(minutes=10)
     async def ping_heroku(self) -> None:
-        requests.get('https://reschan-discbot.herokuapp.com/')
-
-    @commands.command()
-    async def ping(self, ctx):
         requests.get('https://reschan-discbot.herokuapp.com/')
 
     def cog_unload(self):
@@ -353,6 +353,6 @@ if __name__ == '__main__':
     intents = discord.Intents.default()
     intents.members = True
 
-    bot = MainBot(intents)
-    signal.signal(signal.SIGTERM, lambda *_: bot.loop.create_task(bot.close()))
-    bot.run(os.getenv('TOKEN'))
+    bot_instance = MainBot(intents)
+    signal.signal(signal.SIGTERM, lambda *_: bot_instance.loop.create_task(bot_instance.close()))
+    bot_instance.run(os.getenv('TOKEN'))

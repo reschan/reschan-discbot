@@ -4,3 +4,5 @@ python-dotenv
 PyNaCl
 youtube-search
 lavalink
+discord
+requests
