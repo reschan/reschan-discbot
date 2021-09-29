@@ -1,7 +1,6 @@
-from discord.ext import commands
+from discord.ext import commands, tasks
 import discord
-from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-from threading import Thread
+import requests
 import asyncio
 from dotenv import load_dotenv
 import signal
@@ -11,8 +10,6 @@ import re
 import datetime
 
 load_dotenv()
-
-handler = SimpleHTTPRequestHandler
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
 
@@ -100,6 +97,14 @@ class Music(commands.Cog):
 
         lavalink.add_event_hook(self.track_hook)
 
+    @tasks.loop(minutes=10)
+    async def ping_heroku(self) -> None:
+        requests.get(f'0.0.0.0:{os.getenv("PORT")}')
+
+    @commands.command()
+    async def ping(self):
+        requests.get(f'0.0.0.0:{os.getenv("PORT")}')
+
     def cog_unload(self):
         """ Cog unload handler. This removes any event hooks that were registered. """
         self.bot.lavalink._event_hooks.clear()
@@ -142,6 +147,7 @@ class Music(commands.Cog):
             guild_id = int(event.player.guild_id)
             guild = self.bot.get_guild(guild_id)
             await guild.change_voice_state(channel=None)
+            await self.ping_heroku.stop()
 
     @commands.Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -149,6 +155,7 @@ class Music(commands.Cog):
             player = self.bot.lavalink.player_manager.get(before.channel.guild.id)
             player.queue.clear()
             await player.stop()
+            await self.ping_heroku.stop()
 
     @commands.command(aliases=['p'])
     @commands.cooldown(1, 2)
@@ -248,6 +255,7 @@ class Music(commands.Cog):
 
         if not player.is_playing:
             await player.play()
+            await self.ping_heroku.start(player)
 
     @commands.command(aliases=['dc'])
     async def disconnect(self, ctx):
@@ -260,6 +268,7 @@ class Music(commands.Cog):
         if not ctx.author.voice or (player.is_connected and ctx.author.voice.channel.id != int(player.channel_id)):
             raise commands.CommandInvokeError('You are not in reschan\'s voice channel.')
 
+        await self.ping_heroku.stop()
         player.queue.clear()
         await player.stop()
         await ctx.guild.change_voice_state(channel=None)
