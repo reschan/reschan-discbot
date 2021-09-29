@@ -102,7 +102,7 @@ class Music(commands.Cog):
         requests.get(f'0.0.0.0:{os.getenv("PORT")}')
 
     @commands.command()
-    async def ping(self):
+    async def ping(self, ctx):
         requests.get(f'0.0.0.0:{os.getenv("PORT")}')
 
     def cog_unload(self):
