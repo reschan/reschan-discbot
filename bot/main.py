@@ -274,11 +274,11 @@ class Music(commands.Cog):
         await ctx.send(f'Shuffle is set to {opt}', delete_after=10)
 
     @commands.command()
-    async def loop(self, ctx, opt: bool = None):
+    async def repeat(self, ctx, opt: bool = None):
         player = self.bot.lavalink.player_manager.get(ctx.guild.id)
 
-        player.loop = opt if opt is not None else not player.loop
-        await ctx.send(f'Loop is set to {player.loop}', delete_after=10)
+        player.repeat = opt if opt is not None else not player.repeat
+        await ctx.send(f'Repeat is set to {player.repeat}', delete_after=10)
 
     @commands.command()
     async def pause(self, ctx):
