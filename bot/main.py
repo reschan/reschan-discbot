@@ -1,8 +1,8 @@
 from discord.ext import commands, tasks
+from dotenv import load_dotenv
 import discord
 import requests
 import asyncio
-from dotenv import load_dotenv
 import signal
 import os
 import lavalink
@@ -25,13 +25,13 @@ def parse_playlist_link(url):
 
 def np_bar(current: int, end: int) -> str:
     res = '--------------------'
-    perc = round(20 * (current / end))
+    perc = round(len(res) * (current / end))
     return res[:perc] + '\u25B6' + res[perc + 1:]
 
 
 class MainBot(commands.Bot):
     def __init__(self, intents):
-        super().__init__(command_prefix='res ', help_command=None, intents=intents)
+        super().__init__(command_prefix='res ', intents=intents)
         self.bot = self
 
     async def on_ready(self):
@@ -41,8 +41,6 @@ class MainBot(commands.Bot):
 
     async def on_message(self, ctx):
         if ctx.author.id == self.user.id:
-            return None
-        if isinstance(ctx.channel, discord.DMChannel):
             return None
         await self.process_commands(ctx)
 
@@ -65,28 +63,8 @@ class Diagnostic(commands.Cog):
 
     @commands.command()
     async def ping(self, ctx):
+        """Ping heroku to wake reschan next 30m"""
         requests.get('https://reschan-discbot.herokuapp.com/')
-
-    @commands.command(name='help')
-    async def help_cmd(self, ctx):
-        embed = discord.Embed(title="Commands for reschan:", color=0x2ff4ff)
-        embed.add_field(name="MusicPlayer", value="Commands for MusicPlayer module", inline=False)
-        embed.add_field(name="play", value="Join queue and play", inline=True)
-        embed.add_field(name="pause", value="Pauses player", inline=True)
-        embed.add_field(name="stop", value="Stops the player", inline=True)
-        embed.add_field(name="resume", value="Resumes the player", inline=True)
-        embed.add_field(name="skip", value="Skip a song", inline=True)
-        embed.add_field(name="queue [pos]", value="Shows queue", inline=True)
-        embed.add_field(name="np", value="Shows now playing", inline=True)
-        embed.add_field(name="dc", value="Disconnects the bot", inline=True)
-        embed.add_field(name="join", value="Deprecated, use play", inline=True)
-        embed.add_field(name="misc.", value="Commands for uncategorized stuff.", inline=False)
-        embed.add_field(name="kyosmile", value="Most precious creature", inline=True)
-        embed.add_field(name="help", value="Shows this message", inline=True)
-        embed.add_field(name="test", value="<:kyoSmile:878070485592703036>", inline=True)
-        embed.set_footer(
-            text="To wake reschan, please click the link under 'About Me' section of reschan. But if you see this message, reschan is already awake.")
-        return await ctx.send(embed=embed)
 
 
 class Music(commands.Cog):
@@ -105,6 +83,15 @@ class Music(commands.Cog):
     async def ping_heroku(self) -> None:
         requests.get('https://reschan-discbot.herokuapp.com/')
 
+    def cog_check(self, ctx):
+        return not isinstance(ctx.channel, discord.DMChannel)
+
+    async def cog_command_error(self, ctx, error):
+        if isinstance(error, commands.CommandInvokeError):
+            await ctx.send(error.original, delete_after=5)
+        if isinstance(error, commands.CheckFailure):
+            await ctx.send('This command can\'t be used in Direct Message!', delete_after=5)
+
     def cog_unload(self):
         """ Cog unload handler. This removes any event hooks that were registered. """
         self.bot.lavalink._event_hooks.clear()
@@ -122,7 +109,7 @@ class Music(commands.Cog):
         """ This check ensures that the bot and command author are in the same voicechannel. """
         player = self.bot.lavalink.player_manager.create(ctx.guild.id, endpoint=str(ctx.guild.region))
 
-        should_connect = ctx.command.name in ('play', 'ping')
+        should_connect = ctx.command.name in ('play',)
 
         if not ctx.author.voice or not ctx.author.voice.channel:
             raise commands.CommandInvokeError('You are not in a voice channel.')
