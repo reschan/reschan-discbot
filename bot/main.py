@@ -56,6 +56,8 @@ class Diagnostic(commands.Cog):
 
     @commands.command(name='test')
     async def dumbstuff(self, ctx, *args):
+        if ctx.author.id == 506203054107000852:
+            return await ctx.send(f'<:kyoSmile:878070485592703036> {ctx.author}: {ctx.message}')
         for i in range(len(args)):
             await ctx.send(args[i])
         print(ctx.message)
