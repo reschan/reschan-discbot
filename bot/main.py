@@ -208,7 +208,6 @@ class Music(commands.Cog):
             track = lavalink.models.AudioTrack(track, ctx.author.id, recommended=True, uri=track['info']['uri'], duration=track['info']['length'])
             player.add(requester=ctx.author.id, track=track)
         elif results['loadType'] == 'SEARCH_RESULT':
-            print(results)
 
             searches = results['tracks'][:10]
 
