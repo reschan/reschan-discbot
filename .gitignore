@@ -115,9 +115,7 @@ bot/ffplay.exe
 bot/ffprobe.exe
 
 # lavalink
-bot/Lavalink.jar
-bot/application.yml
-bot/logs
+lavalink
 
 # node
 /node_modules
