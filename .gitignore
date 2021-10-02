@@ -116,6 +116,8 @@ bot/ffprobe.exe
 
 # lavalink
 bot/Lavalink.jar
+bot/application.yml
+bot/logs
 
 # node
 /node_modules

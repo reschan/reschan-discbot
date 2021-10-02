@@ -1,4 +1,4 @@
-py-cord
+py-cord[voice]
 python-dotenv
 PyNaCl
 lavalink
