@@ -1,8 +1,5 @@
-discord.py
-youtube-dl
+py-cord
 python-dotenv
 PyNaCl
-youtube-search
 lavalink
-discord
 requests

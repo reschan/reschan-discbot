@@ -92,7 +92,7 @@ class Music(commands.Cog):
         if isinstance(error, commands.CommandInvokeError):
             await ctx.send(error.original, delete_after=5)
         if isinstance(error, commands.CheckFailure):
-            await ctx.send('This command can\'t be used in Direct Message!', delete_after=5)
+            await ctx.send('This command can\'t be used in Direct Message!')
 
     def cog_unload(self):
         """ Cog unload handler. This removes any event hooks that were registered. """
@@ -343,5 +343,8 @@ if __name__ == '__main__':
     intents.members = True
 
     bot_instance = MainBot(intents)
+
+    # Heroku terminator
     signal.signal(signal.SIGTERM, lambda *_: bot_instance.loop.create_task(bot_instance.close()))
+
     bot_instance.run(os.getenv('TOKEN'))
