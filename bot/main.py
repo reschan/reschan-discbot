@@ -214,7 +214,7 @@ class Music(commands.Cog):
             s_embed = discord.Embed(title=f'Search results:')
             s_embed.set_footer(text='Please select from 0-9 in 15 second.')
             for i in range(len(searches)):
-                s_embed.add_field(name=f'{i}. {searches[i]["info"]["title"][:60]}...',
+                s_embed.add_field(name=f'{i}. {searches[i]["info"]["title"][:50] + "..." if len(searches[i]["info"]["title"]) > 50 else searches[i]["info"]["title"]}',
                                   value=f'Chn. Name: {searches[i]["info"]["author"]} || '
                                         f'Duration: {datetime.timedelta(milliseconds=searches[i]["info"]["length"])}',
                                   inline=False)
