@@ -3,3 +3,4 @@ python-dotenv
 PyNaCl
 lavalink
 requests
+Pillow

@@ -6,10 +6,6 @@ import requests
 import io
 
 
-def emote_url(emote):
-    return f"https://cdn.discordapp.com/emojis/{emote.id}.png"
-
-
 class ImgManipulation(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -61,7 +57,3 @@ def asciify(image, max_width: int = 200, charset: str = " .:-=+*#%@"):
 
 def braillify():
     pass
-
-
-# asciify("test4.jpg").show()
-
