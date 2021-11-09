@@ -8,6 +8,7 @@ import os
 import lavalink
 import re
 import datetime
+from cogs.asciify import ImgManipulation
 
 load_dotenv()
 
@@ -38,6 +39,7 @@ class MainBot(commands.Bot):
         print(f'{self.user.name} has connected to Discord!')
         self.add_cog(Music(self))
         self.add_cog(Diagnostic(self))
+        self.add_cog(ImgManipulation(self))
 
     async def on_message(self, ctx):
         if ctx.author.id == self.user.id:
@@ -60,13 +62,21 @@ class Diagnostic(commands.Cog):
             return await ctx.send(f'<:kyoSmile:878070485592703036> {ctx.author}: {ctx.message}')
         for i in range(len(args)):
             await ctx.send(args[i])
-        print(ctx.message)
+        print(ctx.message.content)
+        if ctx.message.attachments:
+            await ctx.send(f"attach: {ctx.message.attachments[0].url}")
         return await ctx.send('probably alive')
 
     @commands.command()
     async def ping(self, ctx):
         """Ping heroku to wake reschan next 30m"""
         requests.get('https://reschan-discbot.herokuapp.com/')
+
+    @commands.command()
+    async def join(self, ctx):
+        guild_id = int(ctx.guild.id)
+        guild = self.bot.get_guild(guild_id)
+        await guild.change_voice_state(channel=ctx.author.voice.channel)
 
 
 class Music(commands.Cog):
