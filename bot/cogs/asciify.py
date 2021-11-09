@@ -38,11 +38,10 @@ def asciify(image, max_width: int = 200, charset: str = " .:-=+*#%@"):
     image = image.resize((max_width, int(image.size[1] * max_width / image.size[0])))
 
     res = ''
-    print(image.size)
 
-    for y in range(image.size[1]):
+    for y in range(image.size[1] // 2):
         for x in range(image.size[0]):
-            gray = image.getpixel((x, y))
+            gray = image.getpixel((x, y * 2))
             res += charset[int(gray / 255 * (len(charset) - 1))]
         res += '\n'
 
@@ -50,10 +49,14 @@ def asciify(image, max_width: int = 200, charset: str = " .:-=+*#%@"):
     fnt = ImageFont.truetype("CourierPrime-Regular.ttf", 10)
 
     d = ImageDraw.Draw(res_img)
-    d.multiline_text((0, 0), res, font=fnt, spacing=-2)
+    d.multiline_text((0, 0), res, font=fnt)
 
     return res_img
 
 
 def braillify():
     pass
+
+
+if __name__ == "__main__":
+    asciify('testimg/2.jpg', 2000).show()
