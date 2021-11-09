@@ -9,7 +9,7 @@ import lavalink
 import re
 import datetime
 from cogs.asciify import ImgManipulation
-
+print(os.listdir(os.curdir))
 load_dotenv()
 
 url_rx = re.compile(r'https?://(?:www\.)?.+')
