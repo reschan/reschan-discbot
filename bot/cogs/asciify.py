@@ -47,7 +47,7 @@ def asciify(image, max_width: int = 200, charset: str = " .:-=+*#%@"):
         res += '\n'
 
     res_img = Image.new("RGB", (image.size[0]*6, image.size[1]*6), (54, 57, 63))
-    fnt = ImageFont.truetype("CourierPrime-Regular.ttf", 10)
+    fnt = ImageFont.truetype("../CourierPrime-Regular.ttf", 10)
 
     d = ImageDraw.Draw(res_img)
     d.multiline_text((0, 0), res, font=fnt, spacing=-2)
