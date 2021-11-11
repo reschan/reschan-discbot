@@ -62,10 +62,13 @@ class ImgManipulation(commands.Cog):
         image = io.BytesIO(requests.get(img_url, stream=True).content)
         loop = asyncio.get_event_loop()
         image = await loop.run_in_executor(ThreadPoolExecutor(), braillify, image, max_width, bias)
-        if len(image) > 2000:
-            await ctx.send('Image too large for Discord.')
-        else:
+        if isinstance(image, str):
             await ctx.send(image)
+        else:
+            with io.BytesIO() as image_binary:
+                image.save(image_binary, 'PNG')
+                image_binary.seek(0)
+                await ctx.send(file=File(fp=image_binary, filename='image.png'))
 
 
 def asciify(image, max_width: int = 200, charset: str = " .:-=+*#%@", bgc: tuple = (0, 0, 0), fgc: tuple = (255, 255, 255)):
@@ -136,8 +139,15 @@ def braillify(image, max_width: int = 40, bias: float = 1):
                 bincode += '0'
         res += braille_table[bincode[::-1]]
 
+    if len(res) > 2000:
+        res_img = Image.new("RGB", (int(image.size[0] * 3.5), int(image.size[1] * 3.5)))
+        fnt = ImageFont.truetype("dejavu.ttf", 10)
+        d = ImageDraw.Draw(res_img)
+        d.multiline_text((0, 0), res, font=fnt)
+
+        return res_img
     return res
 
 
 if __name__ == "__main__":
-    pass
+    braillify('testimg/3.jpg', 1200).save('brify.png')
