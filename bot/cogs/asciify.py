@@ -1,12 +1,16 @@
 import requests
-from PIL import Image, ImageFont, ImageDraw
+from PIL import Image, ImageFont, ImageDraw, ImageEnhance
 from discord.ext import commands
-from discord import File, Emoji
+from discord import File
 import requests
 import io
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from unicodedata import lookup
+
+braille_table = {'00000000': chr(10241)}
+
+for chrid in range(10241, 10496):
+    braille_table[bin(chrid)[8:]] = chr(chrid)
 
 
 class ImgManipulation(commands.Cog):
@@ -43,6 +47,26 @@ class ImgManipulation(commands.Cog):
             image_binary.seek(0)
             await ctx.send(file=File(fp=image_binary, filename='image.png'))
 
+    @commands.command(name='braillify', aliases=['brify'])
+    async def braillify(self, ctx, img_url, *args):
+        config = {'width': '40', 'bias': '1'}
+        for i in range(len(args)):
+            arg = args[i].split('=')
+            config[arg[0]] = arg[1]
+
+        max_width = int(config['width']) if config['width'].isdigit() else 40
+        bias = float(config['bias']) if config['bias'].replace('.', '', 1).isdigit() else 1
+
+        if img_url == "f":
+            img_url = ctx.message.attachments[0].url
+        image = io.BytesIO(requests.get(img_url, stream=True).content)
+        loop = asyncio.get_event_loop()
+        image = await loop.run_in_executor(ThreadPoolExecutor(), braillify, image, max_width, bias)
+        if len(image) > 2000:
+            await ctx.send('Image too large for Discord.')
+        else:
+            await ctx.send(image)
+
 
 def asciify(image, max_width: int = 200, charset: str = " .:-=+*#%@", bgc: tuple = (0, 0, 0), fgc: tuple = (255, 255, 255)):
     """
@@ -78,12 +102,42 @@ def asciify(image, max_width: int = 200, charset: str = " .:-=+*#%@", bgc: tuple
     return res_img
 
 
-def braillify():
-    pass
+def braillify(image, max_width: int = 40, bias: float = 1):
+    image = Image.open(image).convert("L")
+    image = image.resize((max_width, int(image.size[1] * max_width / image.size[0])))
+
+    pxlst = []
+    pxall = []
+
+    for y in range(image.size[1] // 4):
+        for x in range(image.size[0] // 2):
+            grp = []
+            for ix in range(2):
+                for iy in range(3):
+                    grp.append(image.getpixel((x * 2 + ix, y * 4 + iy)))
+            grp.append(image.getpixel((x * 2, y * 4 + 3)))
+            grp.append(image.getpixel((x * 2 + 1, y * 4 + 3)))
+            pxlst.append(grp)
+            pxall.extend(grp)
+        pxlst.append('nl')
+
+    res = ''
+    avg = int(sum(pxall) / len(pxall) * bias)
+
+    for chrs in pxlst:
+        if chrs == 'nl':
+            res += '\n'
+            continue
+        bincode = ''
+        for c in chrs:
+            if c > avg:
+                bincode += '1'
+            else:
+                bincode += '0'
+        res += braille_table[bincode[::-1]]
+
+    return res
 
 
 if __name__ == "__main__":
-    # asciify('testimg/3.jpg', 2000).save('ascii.png')
-
-    a = '2'
-    print(int(a) if a.isdigit() else 1)
+    pass
