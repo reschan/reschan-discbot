@@ -6,6 +6,7 @@ import requests
 import io
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from collections import Counter
 
 braille_table = {'00000000': chr(10241)}
 
@@ -49,19 +50,20 @@ class ImgManipulation(commands.Cog):
 
     @commands.command(name='braillify', aliases=['brify'])
     async def braillify(self, ctx, img_url, *args):
-        config = {'width': '40', 'bias': '1'}
+        config = {'width': '40', 'bias': '1', 'dither': 'false'}
         for i in range(len(args)):
             arg = args[i].split('=')
             config[arg[0]] = arg[1]
 
         max_width = int(config['width']) if config['width'].isdigit() else 40
         bias = float(config['bias']) if config['bias'].replace('.', '', 1).isdigit() else 1
+        dither = True if config['dither'] == 'true' else False
 
         if img_url == "f":
             img_url = ctx.message.attachments[0].url
         image = io.BytesIO(requests.get(img_url, stream=True).content)
         loop = asyncio.get_event_loop()
-        image = await loop.run_in_executor(ThreadPoolExecutor(), braillify, image, max_width, bias)
+        image = await loop.run_in_executor(ThreadPoolExecutor(), braillify, image, max_width, bias, dither)
         if isinstance(image, str):
             await ctx.send(image)
         else:
@@ -105,9 +107,13 @@ def asciify(image, max_width: int = 200, charset: str = " .:-=+*#%@", bgc: tuple
     return res_img
 
 
-def braillify(image, max_width: int = 40, bias: float = 1):
-    image = Image.open(image).convert("L")
+def braillify(image, max_width: int = 40, bias: float = 1, dither: bool = False):
+    image = Image.open(image)
     image = image.resize((max_width, int(image.size[1] * max_width / image.size[0])))
+    if dither:
+        image = image.convert('1')
+    else:
+        image = image.convert("L")
 
     pxlst = []
     pxall = []
@@ -150,4 +156,4 @@ def braillify(image, max_width: int = 40, bias: float = 1):
 
 
 if __name__ == "__main__":
-    braillify('testimg/3.jpg', 1200).save('brify.png')
+    pass
